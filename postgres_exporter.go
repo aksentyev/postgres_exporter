@@ -42,6 +42,10 @@ var (
         "consul.dc", "staging",
         "Consul datacenter",
     )
+    consulTag = flag.String(
+        "consul.tag", "postgres",
+        "Look for services that have the tag specified. Default tag is 'postgres'",
+    )
     listenAddress = flag.String(
         "listen", ":9113",
         "Address to listen on for web interface and telemetry.",
@@ -81,7 +85,7 @@ func setup() {
     filterCB := func(list []*hubble.Service) []*hubble.Service {
         var servicesForMonitoring []*hubble.Service
         for _, svc := range list {
-            if util.IncludesStr(svc.Tags, "goro") {
+            if util.IncludesStr(svc.Tags, *consulTag) {
                 servicesForMonitoring = append(servicesForMonitoring, svc)
             }
         }
