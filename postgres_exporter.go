@@ -3,6 +3,7 @@ package main
 import (
     "github.com/aksentyev/hubble/hubble"
     "github.com/aksentyev/hubble/backend/consul"
+    "github.com/aksentyev/hubble/exportertools"
 
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/common/log"
@@ -61,6 +62,10 @@ var (
         "scrape-interval", 60,
         "Scrape interval in seconds",
     )
+    showVersion = flag.Bool(
+        "version", false,
+        "Show versions and exit",
+    )
 )
 
 func setup() {
@@ -103,12 +108,25 @@ func setup() {
     d = h.NewDispatcher(*updateInterval, cb)
 }
 
+func printVersions(){
+    fmt.Printf("exporter: %v\n", exporter.VERSION)
+    fmt.Printf("hubble: %v\n", hubble.VERSION)
+    fmt.Printf("exportertools: %v\n", exportertools.VERSION)
+    fmt.Printf("consul backend: %v\n", consul.VERSION)
+}
+
 func main(){
     // Profiler
     // go func() {
     //     http.ListenAndServe("localhost:6060", nil)
     // }()
     flag.Parse()
+
+    if *showVersion {
+        printVersions()
+        return
+    }
+
     setup()
 
     pgMetricsParsed := exporter.AddFromFile(*queriesPath)
