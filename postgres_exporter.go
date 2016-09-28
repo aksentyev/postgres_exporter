@@ -128,7 +128,7 @@ func main(){
                     d.Register(svc, exp)
                     log.Infof("Registered %v %v", svc.Name, svc.Address)
                 } else {
-                    log.Infof("Register was failed for service %v %v %v", svc.Name, svc.Address, err)
+                    log.Warnf("Register was failed for service %v %v %v", svc.Name, svc.Address, err)
                     exp.Close()
                 }
             }
