@@ -14,10 +14,10 @@ func IncludesStr(source []string, target string) bool {
 }
 
 func PgConnURL(s *hubble.ServiceAtomic) string {
-	url := "postgres://" + s.Address + ":" + s.Port + "/"
-	url += s.ExporterOptions["db"] + "?"
-	url += "user=" + s.ExporterOptions["user"] + "&"
-	url += "password=" + s.ExporterOptions["password"] + "&"
-	url += "sslmode=disable" + "&"
-	return url
+    url := "postgres://" + s.Address + ":" + s.Port + "/"
+    url += s.ExporterOptions["db"] + "?"
+    url += "user=" + s.ExporterOptions["user"] + "&"
+    url += "password=" + s.ExporterOptions["password"] + "&"
+    url += "sslmode=disable" + "&"
+    return url
 }

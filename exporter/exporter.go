@@ -1,11 +1,11 @@
 package exporter
 
 import (
-	"database/sql"
-	_ "github.com/lib/pq"
+    "database/sql"
+    _ "github.com/lib/pq"
 
-	// "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+    // "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/common/log"
 
     "github.com/aksentyev/hubble/exportertools"
 )
@@ -19,10 +19,10 @@ type PostgresExporter struct {
 
 // NewExporter returns a new PostgreSQL exporter for the provided DSN.
 func CreateAndRegister(config *Config) (*PostgresExporter, error) {
-	exp := PostgresExporter{
-		Config: config,
+    exp := PostgresExporter{
+        Config: config,
         BaseExporter: exportertools.NewBaseExporter("postgres", config.CacheTTL, config.Labels),
-	}
+    }
     err := exportertools.Register(&exp)
     if err != nil {
         return &exp, err
@@ -32,13 +32,13 @@ func CreateAndRegister(config *Config) (*PostgresExporter, error) {
 
 func (e *PostgresExporter) Setup() error {
     db, err := sql.Open("postgres", e.Config.DSN)
-	if err != nil {
-		log.Infoln("Error opening connection to database:", err)
-		return err
-	}
+    if err != nil {
+        log.Infoln("Error opening connection to database:", err)
+        return err
+    }
     e.db = db
     e.AddCollector(NewCollector(db, e.Config))
-	return nil
+    return nil
 }
 
 func (e *PostgresExporter) Close() (err error) {
@@ -46,9 +46,9 @@ func (e *PostgresExporter) Close() (err error) {
 
     err = exportertools.Unregister(e)
     if e.db != nil {
-		err = e.db.Close()
+        err = e.db.Close()
         log.Infoln("db closed")
-	}
+    }
 
     e.Control<- true
     log.Debugf("Stop processing metric for %v", e.Labels)

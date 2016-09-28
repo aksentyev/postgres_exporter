@@ -1,20 +1,20 @@
 package main
 
 import (
-	"github.com/aksentyev/hubble/hubble"
-	"github.com/aksentyev/hubble/backend/consul"
+    "github.com/aksentyev/hubble/hubble"
+    "github.com/aksentyev/hubble/backend/consul"
 
-	"github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/common/log"
 
-	"./exporter"
-	"./util"
+    "github.com/aksentyev/postgres_exporter/exporter"
+    "github.com/aksentyev/postgres_exporter/util"
 
     "flag"
     "errors"
     "fmt"
 
-	"net/http"
+    "net/http"
     // _ "net/http/pprof"
 )
 
@@ -41,18 +41,18 @@ var (
         "consul.dc", "staging",
         "Consul datacenter",
     )
-	listenAddress = flag.String(
-		"listen", ":9113",
-		"Address to listen on for web interface and telemetry.",
-	)
-	metricPath = flag.String(
-		"web.telemetry-path", "/metrics",
-		"Path under which to expose exporter.",
-	)
-	queriesPath = flag.String(
-		"queries-path", "./queries.yaml",
-		"Path to custom queries to run.",
-	)
+    listenAddress = flag.String(
+        "listen", ":9113",
+        "Address to listen on for web interface and telemetry.",
+    )
+    metricPath = flag.String(
+        "web.telemetry-path", "/metrics",
+        "Path under which to expose exporter.",
+    )
+    queriesPath = flag.String(
+        "queries-path", "./queries.yaml",
+        "Path to custom queries to run.",
+    )
     updateInterval = flag.Int(
         "update-interval", 120,
         "Update interval in seconds",
@@ -68,10 +68,10 @@ func setup() {
     config.Address = *consulURL
     config.Datacenter = *consulDC
 
-	client, _ := consul.New(config)
+    client, _ := consul.New(config)
 
-	kv := consul.NewKV(client)
-	h := hubble.New(client, kv, "goro")
+    kv := consul.NewKV(client)
+    h := hubble.New(client, kv, "goro")
 
     filterCB := func(list []*hubble.Service) []*hubble.Service {
         var servicesForMonitoring []*hubble.Service
@@ -83,7 +83,7 @@ func setup() {
         return servicesForMonitoring
     }
 
-	cb := func() (list []*hubble.ServiceAtomic, err error) {
+    cb := func() (list []*hubble.ServiceAtomic, err error) {
         defer func() {
             if r := recover(); r != nil {
                 err = errors.New(fmt.Sprintf("Unable to get services from consul: %v", r))
@@ -92,29 +92,29 @@ func setup() {
             }
         }()
 
-		for _, svc := range h.Services(filterCB){
-			for _, el := range svc.MakeAtomic(nil) {
-				list = append(list, el)
-			}
-		}
-		return list, err
-	}
+        for _, svc := range h.Services(filterCB){
+            for _, el := range svc.MakeAtomic(nil) {
+                list = append(list, el)
+            }
+        }
+        return list, err
+    }
 
-	d = h.NewDispatcher(*updateInterval, cb)
+    d = h.NewDispatcher(*updateInterval, cb)
 }
 
 func main(){
     // Profiler
     // go func() {
-	//     http.ListenAndServe("localhost:6060", nil)
+    //     http.ListenAndServe("localhost:6060", nil)
     // }()
-	flag.Parse()
-	setup()
+    flag.Parse()
+    setup()
 
     pgMetricsParsed := exporter.AddFromFile(*queriesPath)
 
-	go func() {
-		for svc := range d.ToRegister {
+    go func() {
+        for svc := range d.ToRegister {
             if len(svc.ExporterOptions) > 1 {
                 config := exporter.Config{
                     DSN:             util.PgConnURL(svc),
@@ -132,8 +132,8 @@ func main(){
                     exp.Close()
                 }
             }
-		}
-	}()
+        }
+    }()
 
     go func() {
         for m := range d.ToUnregister {
@@ -147,13 +147,13 @@ func main(){
                 }
                 d.UnregisterWithHash(h)
             }
-		}
+        }
     }()
 
-	http.Handle(*metricPath, prometheus.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write(landingPage)
-	})
-	log.Infof("Starting Server: %s", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+    http.Handle(*metricPath, prometheus.Handler())
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        w.Write(landingPage)
+    })
+    log.Infof("Starting Server: %s", *listenAddress)
+    log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
