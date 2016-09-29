@@ -109,7 +109,8 @@ func setup() {
         return list, err
     }
 
-    d = h.NewDispatcher(*updateInterval, cb)
+    d = h.NewDispatcher(*updateInterval)
+    go d.Run(cb)
 }
 
 func printVersions(){
@@ -117,6 +118,45 @@ func printVersions(){
     fmt.Printf("hubble: %v\n", hubble.VERSION)
     fmt.Printf("exportertools: %v\n", exportertools.VERSION)
     fmt.Printf("consul backend: %v\n", consul.VERSION)
+}
+
+func listenAndRegister() {
+    pgMetricsParsed := exporter.AddFromFile(*queriesPath)
+
+    for svc := range d.ToRegister {
+        if len(svc.ExporterOptions) > 1 {
+            config := exporter.Config{
+                DSN:             util.PgConnURL(svc),
+                Labels:          svc.ExtraLabels,
+                ExporterOptions: svc.ExporterOptions,
+                CacheTTL:        *scrapeInterval,
+                PgMetrics:       pgMetricsParsed,
+            }
+            exp, err := exporter.CreateAndRegister(&config)
+            if err == nil {
+                d.Register(svc, exp)
+                log.Infof("Registered %v %v", svc.Name, svc.Address)
+            } else {
+                log.Warnf("Register was failed for service %v %v %v", svc.Name, svc.Address, err)
+                exp.Close()
+            }
+        }
+    }
+}
+
+func listenAndUnregister() {
+    for m := range d.ToUnregister {
+        for h, svc := range m {
+            exporter := d.Exporters[h].(*exporter.PostgresExporter)
+            err := exporter.Close()
+            if err != nil {
+                log.Warnf("Unregister() for %v %v returned %v:", svc.Name, svc.Address, err)
+            } else {
+                log.Infof("Unregister service %v %v", svc.Name, svc.Address)
+            }
+            d.UnregisterWithHash(h)
+        }
+    }
 }
 
 func main(){
@@ -132,45 +172,8 @@ func main(){
     }
 
     setup()
-
-    pgMetricsParsed := exporter.AddFromFile(*queriesPath)
-
-    go func() {
-        for svc := range d.ToRegister {
-            if len(svc.ExporterOptions) > 1 {
-                config := exporter.Config{
-                    DSN:             util.PgConnURL(svc),
-                    Labels:          svc.ExtraLabels,
-                    ExporterOptions: svc.ExporterOptions,
-                    CacheTTL:        *scrapeInterval,
-                    PgMetrics:       pgMetricsParsed,
-                }
-                exp, err := exporter.CreateAndRegister(&config)
-                if err == nil {
-                    d.Register(svc, exp)
-                    log.Infof("Registered %v %v", svc.Name, svc.Address)
-                } else {
-                    log.Warnf("Register was failed for service %v %v %v", svc.Name, svc.Address, err)
-                    exp.Close()
-                }
-            }
-        }
-    }()
-
-    go func() {
-        for m := range d.ToUnregister {
-            for h, svc := range m {
-                exporter := d.Exporters[h].(*exporter.PostgresExporter)
-                err := exporter.Close()
-                if err != nil {
-                    log.Warnf("Unregister() for %v %v returned %v:", svc.Name, svc.Address, err)
-                } else {
-                    log.Infof("Unregister service %v %v", svc.Name, svc.Address)
-                }
-                d.UnregisterWithHash(h)
-            }
-        }
-    }()
+    go listenAndRegister()
+    go listenAndUnregister()
 
     http.Handle(*metricPath, prometheus.Handler())
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
