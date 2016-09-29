@@ -12,7 +12,6 @@ import (
     "github.com/aksentyev/postgres_exporter/util"
 
     "flag"
-    "errors"
     "fmt"
 
     "net/http"
@@ -77,10 +76,13 @@ func setup() {
     config.Address = *consulURL
     config.Datacenter = *consulDC
 
-    client, _ := consul.New(config)
+    client, err := consul.New(config)
+    if err != nil {
+        panic(err)
+    }
 
     kv := consul.NewKV(client)
-    h := hubble.New(client, kv, "goro")
+    h := hubble.New(client, kv, *consulTag)
 
     filterCB := func(list []*hubble.Service) []*hubble.Service {
         var servicesForMonitoring []*hubble.Service
@@ -93,15 +95,11 @@ func setup() {
     }
 
     cb := func() (list []*hubble.ServiceAtomic, err error) {
-        defer func() {
-            if r := recover(); r != nil {
-                err = errors.New(fmt.Sprintf("Unable to get services from consul: %v", r))
-                list = []*hubble.ServiceAtomic{}
-                log.Errorln(err)
-            }
-        }()
-
-        for _, svc := range h.Services(filterCB){
+        services, err := h.Services(filterCB)
+        if err != nil {
+            return list, err
+        }
+        for _, svc := range services {
             for _, el := range svc.MakeAtomic(nil) {
                 list = append(list, el)
             }
