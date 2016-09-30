@@ -43,7 +43,7 @@ var (
     )
     consulTag = flag.String(
         "consul.tag", "postgres",
-        "Look for services that have the tag specified. Default tag is 'postgres'",
+        "Look for services that have the tag specified.",
     )
     listenAddress = flag.String(
         "listen", ":9113",
