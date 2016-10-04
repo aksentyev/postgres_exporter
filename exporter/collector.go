@@ -3,7 +3,6 @@ package exporter
 import (
     "database/sql"
     _ "github.com/lib/pq"
-    "strconv"
 
     "github.com/aksentyev/hubble/exportertools"
 )
@@ -24,9 +23,9 @@ func (c *Collector) Collect() ([]*exportertools.Metric, error) {
     if err != nil {
         return make([]*exportertools.Metric, 0), err
     }
-    dbMetrics := formatDatabaseStats(c.Labels, stat)
-    pgMetrics := c.collectPgStats()
-    return append(dbMetrics, pgMetrics...), nil
+    dbData := formatDatabaseStats(c.Labels, stat)
+    pgData := c.collectPgStats()
+    return append(dbData, pgData...), nil
 }
 
 func (c *Collector) collectDatabaseStats(dbName string, s *DatabaseStat) error {
@@ -44,30 +43,40 @@ func (c *Collector) collectDatabaseStats(dbName string, s *DatabaseStat) error {
 
 func (c *Collector) collectPgStats() (collectedData []*exportertools.Metric) {
     for _, m := range c.PgMetrics {
-        value, err := c.getValue(m.query)
+        values := c.db.QueryRow(m.query)
+
+        fields := tableFields(m.specs)
+        parsedData := make([]interface{}, len(fields))
+        scanArgs := make([]interface{}, len(fields))
+        for i := range parsedData {
+            scanArgs[i] = &parsedData[i]
+        }
+
+        err := values.Scan(scanArgs...)
         if err != nil {
             continue
         }
 
-        em := exportertools.Metric{
-                Name:        m.name,
-                Type:        exportertools.StringToType(m.mtype),
-                Value:       value,
-                Description: m.desc,
-                Labels:      c.Labels,
-            }
+        for idx, val := range parsedData {
 
-        collectedData = append(collectedData, &em)
+            em := exportertools.Metric{
+                    Name:        m.specs[idx].name,
+                    Type:        exportertools.StringToType(m.specs[idx].mtype),
+                    Value:       val,
+                    Description: m.specs[idx].desc,
+                    Labels:      c.Labels,
+                }
+
+            collectedData = append(collectedData, &em)
+        }
+
     }
     return collectedData
 }
 
-func (c *Collector) getValue(query string) (int64, error) {
-    var data string
-    err := c.db.QueryRow(query).Scan(&data)
-    if err != nil {
-        return -1, err
+func tableFields(specs []*PgMetricSpecs) (list []string) {
+    for _, s := range specs {
+        list = append(list, s.name)
     }
-    v, _ := strconv.ParseInt(data, 10, 64)
-    return v, nil
+    return list
 }

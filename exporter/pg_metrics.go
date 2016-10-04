@@ -4,18 +4,61 @@ import (
     "io/ioutil"
     "gopkg.in/yaml.v2"
     "fmt"
+    "github.com/davecgh/go-spew/spew"
     "github.com/prometheus/common/log"
 )
 
 type PgMetric struct {
-    query, name, desc, mtype string
+    query string
+    specs []*PgMetricSpecs
+}
+
+type PgMetricSpecs struct {
+    name, desc, mtype string
 }
 
 // AddFromFile reads yaml with metric parameter and serialize it
 func AddFromFile(queriesPath string) (metrics []*PgMetric) {
+    queries := loadFile(queriesPath)
+    for prefix, specs := range queries {
+        metric := PgMetric{}
+        for key, value := range specs.(map[interface{}]interface{}) {
+            switch key.(string) {
+            case "query":
+                query := value.(string)
+                metric.query = query
+
+            case "metrics":
+                for _, item := range value.([]interface{}) {
+                    metricPropsInterface := item.(map[interface{}]interface{})
+                    metricProps := PgMetricSpecs{}
+
+                    for name, attrs := range metricPropsInterface {
+                        metricProps.name = fmt.Sprintf("%v_%v",prefix, name.(string))
+
+                        for key, val := range attrs.(map[interface{}]interface{}) {
+                            switch key.(string) {
+                            case "type":
+                                metricProps.mtype = val.(string)
+                            case "description":
+                                metricProps.desc = val.(string)
+                            }
+                        }
+                    }
+                    metric.specs = append(metric.specs, &metricProps)
+                }
+            }
+        }
+        metrics = append(metrics, &metric)
+    }
+    log.Infof("Metrics parsed:\n%v", spew.Sdump(metrics))
+    return metrics
+}
+
+func loadFile(path string) map[string]interface{} {
     var extra map[string]interface{}
 
-    content, err := ioutil.ReadFile(queriesPath)
+    content, err := ioutil.ReadFile(path)
     if err != nil {
         log.Errorf("File read error: %v", err)
     }
@@ -25,34 +68,5 @@ func AddFromFile(queriesPath string) (metrics []*PgMetric) {
         log.Errorf("File parse error: %v", err)
     }
 
-    for prefix, specs := range extra {
-        metricItem := PgMetric{}
-        for key, value := range specs.(map[interface{}]interface{}) {
-            switch key.(string) {
-            case "query":
-                query := value.(string)
-                metricItem.query = query
-
-            case "metrics":
-                for _, c := range value.([]interface{}) {
-                    metricProps := c.(map[interface{}]interface{})
-
-                    for name, attrs := range metricProps {
-                        metricItem.name = fmt.Sprintf("%v_%v",prefix, name.(string))
-
-                        for key, val := range attrs.(map[interface{}]interface{}) {
-                            switch key.(string) {
-                            case "type":
-                                metricItem.mtype = val.(string)
-                            case "description":
-                                metricItem.desc = val.(string)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        metrics = append(metrics, &metricItem)
-    }
-    return metrics
+    return extra
 }

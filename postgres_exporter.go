@@ -8,7 +8,7 @@ import (
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/common/log"
 
-    "github.com/aksentyev/postgres_exporter/exporter"
+    "./exporter"
     "github.com/aksentyev/postgres_exporter/util"
 
     "flag"
