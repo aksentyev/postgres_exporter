@@ -5,6 +5,8 @@ import (
     _ "github.com/lib/pq"
 
     "github.com/aksentyev/hubble/exportertools"
+
+    "github.com/prometheus/common/log"
 )
 
 type Collector struct {
@@ -54,6 +56,7 @@ func (c *Collector) collectPgStats() (collectedData []*exportertools.Metric) {
 
         err := values.Scan(scanArgs...)
         if err != nil {
+            log.Warnf("Unable to parse query result.\nq: %v\n error: %v", m.query, err)
             continue
         }
 
