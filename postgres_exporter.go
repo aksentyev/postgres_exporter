@@ -107,7 +107,7 @@ func setup() {
         return list, err
     }
 
-    d = h.NewDispatcher(*updateInterval)
+    d = hubble.NewDispatcher(*updateInterval)
     go d.Run(cb)
 }
 
