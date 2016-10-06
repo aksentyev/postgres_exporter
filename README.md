@@ -19,3 +19,7 @@ Advantages:
 - Only one service's monitoring agent instead of N agents for N services
 
 - Live service discovery w/o restarting/reloading
+
+#### Usage
+
+Use aksentyev/postgres_exporter docker image to easy deploy the app.
