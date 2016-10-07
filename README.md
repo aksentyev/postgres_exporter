@@ -20,6 +20,10 @@ Advantages:
 
 - Live service discovery w/o restarting/reloading
 
+- Metrics are exported in background and stored in the cache. So it prevents high resources utilization.
+
 #### Usage
 
 Use aksentyev/postgres_exporter docker image to easy deploy the app.
+
+Add your own metrics to the queries.yaml file. See *exporter/queries.yaml*.
